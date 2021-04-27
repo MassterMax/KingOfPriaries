@@ -319,19 +319,19 @@ TRAIN = True
 COMPUTER = True
 SHOULD_EXECUTE = True
 
-MODEL_PATH = "C:/Users/maxma/Desktop/real курсач/callCS/config2"
+MODEL_PATH = "mini_game.cfg"
 
 game = Game()
 
 last_s = collections.deque(maxlen=N_FRAMES)
 next_s = collections.deque(maxlen=N_FRAMES)
 
-agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, 0.999995, 0.1 * TRAIN, 0.9, 1e-4, MODEL_PATH)
+agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, 0.999996, 0.1 * TRAIN, 0.9, 1e-4, MODEL_PATH)
 
 buffer = ExperienceReplay(BUFFER_SIZE, N_FRAMES)
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'next_state', 'done'])
 
-action = 0
+action = 8
 sum_r = 0
 max_t = 100
 t = 0
@@ -378,7 +378,7 @@ while SHOULD_EXECUTE:
             if not TRAIN:
                 time.sleep(0.5)
         else:
-            action = 0
+            action = 8
             last_s.clear()
             next_s.clear()
             game.launch()
