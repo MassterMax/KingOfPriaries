@@ -1,0 +1,10 @@
+﻿{
+  "Name": "swmod",
+  "Author": "max",
+  "Version": "1.0.1",
+  "Description": "info about pressed keys",
+  "UniqueID": "max.swmod",
+  "EntryDll": "swmod.dll",
+  "MinimumApiVersion": "3.0.0",
+  "UpdateKeys": []
+}
