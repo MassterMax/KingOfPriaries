@@ -19,7 +19,7 @@ N_FRAMES = 4      # state = 4 frames
 N_ACTIONS = 9     # keys to go (+ stay)
 N_FEATURES = 3072  # player, player's bullets, enemies
 
-TRAIN = False
+TRAIN = True
 COMPUTER = True
 SHOULD_EXECUTE = True
 

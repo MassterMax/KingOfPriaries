@@ -6,11 +6,12 @@ import numpy as np
 
 class Agent:
 
-    def __init__(self, n_frames: int, n_features: int, n_actions: int, epsilon: float, delta_epsilon: float, min_epsilon: float, gamma: float, lr: float, model_path: str):
+    def __init__(self, n_frames: int, n_features: int, n_actions: int, epsilon: float, delta_epsilon: float, min_epsilon: float, gamma: float, lr: float, model_path: str, layers):
         self.n_frames = n_frames
         self.n_actions = n_actions
         self.n_features = n_features
         self.model_path = model_path
+        self.layers = layers
         self.__make_nn()
         self.epsilon = epsilon
         self.min_epsilon = min_epsilon
@@ -23,13 +24,11 @@ class Agent:
             network = torch.load(self.model_path)
         else:
             network = nn.Sequential()
-            network.add_module('l1', nn.Linear(self.n_features * self.n_frames, 3072))
-            network.add_module('relu1', nn.ReLU())
-            network.add_module('l2', nn.Linear(3072, 768))
-            network.add_module('relu2', nn.ReLU())
-            network.add_module('l3', nn.Linear(768, 256))
-            network.add_module('relu3', nn.ReLU())
-            network.add_module('l4', nn.Linear(256, self.n_actions))
+            for i in range(len(self.layers) - 1):
+                network.add_module('l' + str(i), nn.Linear(self.layers[i], self.layers[i + 1]))
+                network.add_module('relu' + str(i), nn.ReLU())
+
+            network.add_module('last_l', nn.Linear(self.layers[-1], self.n_actions))
         self.network = network
 
     def __compute_td_loss(self, states, actions, rewards, next_states, is_done):
@@ -66,7 +65,6 @@ class Agent:
         should_explore = np.random.binomial(n=1, p=self.epsilon)
 
         chosen_action = np.random.choice(range(q_values.shape[-1])) if should_explore else greedy_action
-        # print(should_explore, chosen_action, self.epsilon, sep=" ")
 
         return int(chosen_action)
 

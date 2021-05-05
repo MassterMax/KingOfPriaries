@@ -7,6 +7,7 @@ from experience import ExperienceReplay
 
 class Game:
     def __init__(self):
+        self.wait = 0
         self.field = [[0] * SIZE for _ in range(SIZE)]
         self.directions = [(0, 0), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
 
@@ -17,6 +18,7 @@ class Game:
         self.player.update()
 
         self.last_reward = 1
+        self.shoot_reward = 0
         self.done = 0
 
     def print_field(self):
@@ -36,6 +38,7 @@ class Game:
 
     def step(self, action):
         self.last_reward = 1
+        self.shoot_reward = 0
         self.done = 0
         self.clear()
         self.player.move(action)
@@ -44,31 +47,33 @@ class Game:
         for bullet in self.bullets:
             bullet.move()
 
-        spawn_wave = np.random.binomial(n=1, p=0.2)
-        if spawn_wave:
-            for _ in range(5):
-                x = -1
-                y = -1
-                should_spawn = np.random.binomial(n=1, p=0.7)
-                if should_spawn:
-
-                    x = 0 if np.random.binomial(1, 0.5) else SIZE - 2
-                    y = np.random.randint(SIZE // 3, 2 * SIZE // 3)
-                    if np.random.binomial(1, 0.5):
-                        x, y = y, x
-
-                    for monster in self.monsters:
-                        if abs(monster.x - x) < 2 and abs(monster.y - y) < 2:
-                            should_spawn = False
-                            break
+        self.wait += 1
+        if self.wait < 3:
+            pass
+        else:
+            spawn_wave = np.random.binomial(n=1, p=0.3)
+            if spawn_wave:
+                for _ in range(5):
+                    should_spawn = np.random.binomial(n=1, p=0.8)
                     if should_spawn:
-                        m = Monster(x, y, self)
-                        m.times = 0
-                        self.monsters.append(m)
-                        self.field[x][y] = 3
-                        self.field[x + 1][y] = 3
-                        self.field[x][y + 1] = 3
-                        self.field[x + 1][y + 1] = 3
+
+                        x = 0 if np.random.binomial(1, 0.5) else SIZE - 2
+                        y = np.random.randint(SIZE // 3, 2 * SIZE // 3)
+                        if np.random.binomial(1, 0.5):
+                            x, y = y, x
+
+                        for monster in self.monsters:
+                            if abs(monster.x - x) < 2 and abs(monster.y - y) < 2:
+                                should_spawn = False
+                                break
+                        if should_spawn:
+                            m = Monster(x, y, self)
+                            m.times = 0
+                            self.monsters.append(m)
+                            self.field[x][y] = 3
+                            self.field[x + 1][y] = 3
+                            self.field[x][y + 1] = 3
+                            self.field[x + 1][y + 1] = 3
 
         if not TRAIN:
             self.print_field()
@@ -80,8 +85,10 @@ class Game:
                 self.field[i][j] = 0
 
     def launch(self):
+        self.wait = 0
         self.done = 0
         self.last_reward = 1
+        self.shoot_reward = 0
 
     def restart(self):
         self.done = 1
@@ -89,7 +96,7 @@ class Game:
         self.clear()
         self.monsters.clear()
         self.bullets.clear()
-        extra_start = np.random.binomial(1, 0.2)
+        extra_start = np.random.binomial(1, 0.01)
         if extra_start:
             x = SIZE // 3 + (SIZE // 3) * np.random.binomial(1, 0.5)
             y = SIZE // 3 + (SIZE // 3) * np.random.binomial(1, 0.5)
@@ -100,27 +107,27 @@ class Game:
         # self.print_field()
 
     def observations(self):
-        arr = [0] * N_FEATURES
+        arr = [0] * (SIZE * SIZE * 3)
 
-        x = int(self.player.x)
-        y = int(self.player.y)
+        x = int(self.player.x + 0.5)
+        y = int(self.player.y + 0.5)
         arr[y + SIZE * x] = 1
-        arr[y + SIZE * (x + 1)] = 1
         arr[y + 1 + SIZE * x] = 1
         arr[y + 1 + SIZE * (x + 1)] = 1
+        arr[y + SIZE * (x + 1)] = 1
 
         for bullet in self.bullets:
-            x = int(bullet.x)
-            y = int(bullet.y)
+            x = int(bullet.x + 0.5)
+            y = int(bullet.y + 0.5)
             arr[SIZE * SIZE + y + SIZE * x] = 1
 
         for monster in self.monsters:
-            x = int(monster.x)
-            y = int(monster.y)
+            x = int(monster.x + 0.5)
+            y = int(monster.y + 0.5)
             arr[SIZE * SIZE * 2 + y + SIZE * x] = 1
-            arr[SIZE * SIZE * 2 + y + SIZE * (x + 1)] = 1
             arr[SIZE * SIZE * 2 + y + 1 + SIZE * x] = 1
             arr[SIZE * SIZE * 2 + y + 1 + SIZE * (x + 1)] = 1
+            arr[SIZE * SIZE * 2 + y + SIZE * (x + 1)] = 1
 
         return arr
 
@@ -134,31 +141,18 @@ class Creature:
 
 class Player(Creature):
     def move(self, action):
-        if action < 8:
-            action += 1
-            self.x += self.game.directions[action][0]
-            self.y += self.game.directions[action][1]
+        self.x += self.game.directions[action][0]
+        self.y += self.game.directions[action][1]
 
-        # if x < 0 or y < 0 or SIZE - 2 < x or SIZE - 2 < y:
-        #     self.game.restart()
-        #     return
-            self.x = min(SIZE - 2, self.x)
-            self.y = min(SIZE - 2, self.y)
-            self.x = max(0, self.x)
-            self.y = max(0, self.y)
+        self.x = min(SIZE - 2, self.x)
+        self.y = min(SIZE - 2, self.y)
+        self.x = max(0, self.x)
+        self.y = max(0, self.y)
 
-            for monster in self.game.monsters:
-                if self.check_collide(monster):
-                    self.game.restart()
-                    return
-
-            direction = (action + 3) % 8 + 1
-            self.spawn_bullet(direction)
-        else:
-            action -= 8
-            action += 1
-            direction = (action + 3) % 8 + 1
-            self.spawn_bullet(direction)
+        for monster in self.game.monsters:
+            if self.check_collide(monster):
+                self.game.restart()
+                return
 
         self.update()
 
@@ -175,9 +169,14 @@ class Player(Creature):
     def check_collide(self, monster):
         return abs(self.x - monster.x) < 2 and abs(self.y - monster.y) < 2
 
+#   8 1 2
+#   7   3
+#   6 5 4
+
 
 class Bullet:
     def __init__(self, x, y, direction, game):
+        direction += 1
         self.x = x
         self.y = y
         self.game = game
@@ -186,6 +185,7 @@ class Bullet:
             self.y += 1
         if 4 <= direction <= 6:
             self.x += 1
+        self.game.field[self.x][self.y] = 1
 
     def move(self):
         old_x = self.x
@@ -202,7 +202,7 @@ class Bullet:
             for monster in self.game.monsters:
                 # print(monster.x, monster.y, old_x, old_y, sep = " ")
                 if self.intersects_monster(monster, old_x, old_y):
-                    self.game.last_reward += 5  # REWARD CHANGED
+                    self.game.shoot_reward += 5  # REWARD CHANGED
 
                     self.game.field[monster.x][monster.y] = 0
                     self.game.field[monster.x + 1][monster.y] = 0
@@ -217,7 +217,7 @@ class Bullet:
 
         if x < 0 or y < 0 or SIZE - 1 < x or SIZE - 1 < y:
             game.bullets.remove(self)
-            # self.game.last_reward -= 1  # PENALTY
+            # self.game.shoot_reward -= 1
         else:
             self.game.field[x][y] = 2
 
@@ -249,7 +249,7 @@ class Monster(Creature):
             self.y += dy
 
             self.times += 1
-        elif np.random.binomial(n=1, p=0.6):
+        elif np.random.binomial(n=1, p=0.75):  # SHOULD CHASE
             x = self.game.player.x
             y = self.game.player.y
 
@@ -307,51 +307,59 @@ class Monster(Creature):
 
 
 BATCH_SIZE = 500
-BUFFER_SIZE = 50000
-REPLAY_START_SIZE = 4000
+BUFFER_SIZE = 100000
+REPLAY_START_SIZE = 1000
 
-N_FRAMES = 4      # state = 4 frames
-N_ACTIONS = 16     # 8 directions to shoot * 2 (stay/go in opposite direction)
-SIZE = 13
-N_FEATURES = 3 * SIZE**2  # player, player's bullets, enemies
+SIZE = 32
+N_FRAMES = 2      # state = 2 last frames
+N_ACTIONS = 9     # 8 directions to shoot * 2 (stay/go in opposite direction)
+N_FEATURES = SIZE * SIZE * 3  # player, player's bullets, enemies # DEPRECATED
 
 TRAIN = True
 COMPUTER = True
 SHOULD_EXECUTE = True
 
-MODEL_PATH = "mini_game.cfg"
+DELTA_EPSILON = 0.99997
+
+MODEL_PATH = "1.cfg"
+MODEL_PATH2 = "2.cfg"
 
 game = Game()
 
 last_s = collections.deque(maxlen=N_FRAMES)
 next_s = collections.deque(maxlen=N_FRAMES)
 
-agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, 0.999996, 0.1 * TRAIN, 0.9, 1e-4, MODEL_PATH)
+agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.99, 1e-4, MODEL_PATH, [N_FEATURES * N_FRAMES, 2048, 1024, 512, 256])  # LEARNING RATE
+shooting = Agent(N_FRAMES, N_FEATURES, 8, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.99, 1e-4, MODEL_PATH2, [N_FEATURES * N_FRAMES, 2048, 1024, 512, 256])
 
 buffer = ExperienceReplay(BUFFER_SIZE, N_FRAMES)
-Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'next_state', 'done'])
+Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'shooting_action', 'reward', 'reward_shooting', 'next_state', 'done'])
 
-action = 8
+action = 0
+shooting_action = 0
 sum_r = 0
 max_t = 100
 t = 0
-
+avg_steps = 0
+best_r = 0
+temp_r = 0
 while SHOULD_EXECUTE:
     state = game.observations()
     reward = game.last_reward
+    shooting_reward = game.shoot_reward
     done = game.done
 
     # print(reward, done, sep=" ")
     # action = np.random.choice(9, 1)[0]
     # game.step(action)
     # time.sleep(0.5)
-
-    # for i in range(96):
-    #    for j in range(32):
-    #        print(state[32 * i + j], end=" ")
-    #    print()
-    #    if (i + 1) % 32 == 0:
-    #        print()
+    '''
+    for i in range(SIZE * 3):
+        for j in range(SIZE):
+            print(state[SIZE * i + j], end=" ")
+        print()
+        if (i + 1) % SIZE == 0:
+            print()'''
 
     next_s.append(state)
 
@@ -360,32 +368,45 @@ while SHOULD_EXECUTE:
             pass
         elif done and t % 10 == 0:
             batch = buffer.sample(BATCH_SIZE)
-            states, actions, rewards, next_states, is_done = batch
+            states, actions, shooting_actions, rewards, shooting_rewards, next_states, is_done = batch
             agent.learn(states, actions, rewards, next_states, is_done)
+            shooting.learn(states, shooting_actions, shooting_rewards, next_states, is_done)
 
-        if len(last_s) == 4:
-            buffer.append(Experience(np.concatenate(last_s), action, reward, np.concatenate(next_s), done))
-            sum_r += reward
+        if len(last_s) == N_FRAMES:
+            buffer.append(Experience(np.concatenate(last_s), action, shooting_action, reward, shooting_reward, np.concatenate(next_s), done))
+            sum_r += reward + shooting_reward
+            temp_r += reward + shooting_reward
 
     last_s.append(next_s[-1])
 
-    if len(last_s) == 4:
+    if len(last_s) == N_FRAMES:
         action = agent.get_action(np.concatenate(last_s))
+        shooting_action = shooting.get_action(np.concatenate(last_s))
         # print(action)
     if COMPUTER:
         if not done:
             game.step(action)
+            game.player.spawn_bullet(shooting_action)
             if not TRAIN:
                 time.sleep(0.5)
         else:
-            action = 8
+            action = 0
+            shooting_action = 0
             last_s.clear()
             next_s.clear()
+            avg_steps += game.wait
+            best_r = max(best_r, temp_r)
+            temp_r = 0
             game.launch()
 
     if TRAIN and done:
         t += 1
         if t % max_t == 0:
             agent.save()
-            print(f"t = {t}, mean sum = {sum_r / max_t}, model saved")
+            shooting.save()
+            print(f"t = {t}, mean sum = {sum_r / max_t}, best score = {best_r}, average steps = {avg_steps / max_t}")
+            avg_steps = 0
             sum_r = 0
+            best_r = 0
+        # if t > 100000:
+        #     buffer.clear()
