@@ -92,11 +92,12 @@ class Game:
 
     def restart(self):
         self.done = 1
-        self.last_reward = -100
+        self.last_reward = -50
+        self.shoot_reward = -50
         self.clear()
         self.monsters.clear()
         self.bullets.clear()
-        extra_start = np.random.binomial(1, 0.01)
+        extra_start = np.random.binomial(1, 0.2)
         if extra_start:
             x = SIZE // 3 + (SIZE // 3) * np.random.binomial(1, 0.5)
             y = SIZE // 3 + (SIZE // 3) * np.random.binomial(1, 0.5)
@@ -169,10 +170,6 @@ class Player(Creature):
     def check_collide(self, monster):
         return abs(self.x - monster.x) < 2 and abs(self.y - monster.y) < 2
 
-#   8 1 2
-#   7   3
-#   6 5 4
-
 
 class Bullet:
     def __init__(self, x, y, direction, game):
@@ -197,10 +194,8 @@ class Bullet:
         x = self.x
         y = self.y
 
-        # print(old_x, old_y, x, y, sep=" ")
         while old_x != x or old_y != y:
             for monster in self.game.monsters:
-                # print(monster.x, monster.y, old_x, old_y, sep = " ")
                 if self.intersects_monster(monster, old_x, old_y):
                     self.game.shoot_reward += 5  # REWARD CHANGED
 
@@ -217,7 +212,7 @@ class Bullet:
 
         if x < 0 or y < 0 or SIZE - 1 < x or SIZE - 1 < y:
             game.bullets.remove(self)
-            # self.game.shoot_reward -= 1
+            self.game.shoot_reward -= 2
         else:
             self.game.field[x][y] = 2
 
@@ -306,7 +301,7 @@ class Monster(Creature):
         return (x1 - x2) ** 2 + (y1 - y2) ** 2
 
 
-BATCH_SIZE = 500
+BATCH_SIZE = 1000
 BUFFER_SIZE = 100000
 REPLAY_START_SIZE = 1000
 
@@ -319,7 +314,7 @@ TRAIN = True
 COMPUTER = True
 SHOULD_EXECUTE = True
 
-DELTA_EPSILON = 0.99997
+DELTA_EPSILON = 0.9999
 
 MODEL_PATH = "1.cfg"
 MODEL_PATH2 = "2.cfg"
@@ -329,8 +324,8 @@ game = Game()
 last_s = collections.deque(maxlen=N_FRAMES)
 next_s = collections.deque(maxlen=N_FRAMES)
 
-agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.99, 1e-4, MODEL_PATH, [N_FEATURES * N_FRAMES, 2048, 1024, 512, 256])  # LEARNING RATE
-shooting = Agent(N_FRAMES, N_FEATURES, 8, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.99, 1e-4, MODEL_PATH2, [N_FEATURES * N_FRAMES, 2048, 1024, 512, 256])
+agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.99, 1e-5, MODEL_PATH, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])  # LEARNING RATE
+shooting = Agent(N_FRAMES, N_FEATURES, 8, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.99, 1e-5, MODEL_PATH2, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])
 
 buffer = ExperienceReplay(BUFFER_SIZE, N_FRAMES)
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'shooting_action', 'reward', 'reward_shooting', 'next_state', 'done'])
@@ -349,24 +344,12 @@ while SHOULD_EXECUTE:
     shooting_reward = game.shoot_reward
     done = game.done
 
-    # print(reward, done, sep=" ")
-    # action = np.random.choice(9, 1)[0]
-    # game.step(action)
-    # time.sleep(0.5)
-    '''
-    for i in range(SIZE * 3):
-        for j in range(SIZE):
-            print(state[SIZE * i + j], end=" ")
-        print()
-        if (i + 1) % SIZE == 0:
-            print()'''
-
     next_s.append(state)
 
     if TRAIN:
         if len(buffer) < REPLAY_START_SIZE:
             pass
-        elif done and t % 10 == 0:
+        elif done and t % 100 == 0:
             batch = buffer.sample(BATCH_SIZE)
             states, actions, shooting_actions, rewards, shooting_rewards, next_states, is_done = batch
             agent.learn(states, actions, rewards, next_states, is_done)
@@ -407,6 +390,6 @@ while SHOULD_EXECUTE:
             print(f"t = {t}, mean sum = {sum_r / max_t}, best score = {best_r}, average steps = {avg_steps / max_t}")
             avg_steps = 0
             sum_r = 0
-            best_r = 0
+            best_r = -100
         # if t > 100000:
         #     buffer.clear()

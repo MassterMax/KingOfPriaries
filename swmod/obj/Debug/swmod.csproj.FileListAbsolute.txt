@@ -16,3 +16,12 @@ C:\Users\maxma\Desktop\real курсач\swmod\obj\Debug\swmod.csproj.CopyComple
 C:\Users\maxma\Desktop\real курсач\swmod\obj\Debug\swmod.dll
 C:\Users\maxma\Desktop\real курсач\swmod\obj\Debug\swmod.pdb
 C:\Users\maxma\Desktop\real курсач\swmod\obj\Debug\swmod.csprojAssemblyReference.cache
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\bin\Debug\swmod.dll
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\bin\Debug\swmod.pdb
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\bin\Debug\WindowsInput.dll
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\bin\Debug\WindowsInput.xml
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\obj\Debug\swmod.csprojAssemblyReference.cache
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\obj\Debug\swmod.csproj.CoreCompileInputs.cache
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\obj\Debug\swmod.csproj.CopyComplete
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\obj\Debug\swmod.dll
+C:\Users\maxma\Desktop\important\KingOfPriaries\swmod\obj\Debug\swmod.pdb

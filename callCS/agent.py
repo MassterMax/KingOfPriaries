@@ -49,6 +49,7 @@ class Agent:
 
         loss = torch.mean((predicted_qvalues_for_actions - target_qvalues_for_actions.detach()) ** 2)
 
+        print(loss)
         return loss
 
     def learn(self, states, actions, rewards, next_states, is_done):
