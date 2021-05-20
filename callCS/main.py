@@ -9,7 +9,7 @@ from agent import Agent
 PROCESS_NAME = "StardewModdingAPI.exe"
 WALKING_PATH = "1.cfg"
 SHOOTING_PATH = "2.cfg"
-DIRECTORY_PATH = "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley"
+DIRECTORY_PATH = "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley"  # insert your path to stardew valley folder
 
 SIZE = 32
 N_FRAMES = 2      # state = 4 frames
@@ -21,11 +21,16 @@ SHOULD_EXECUTE = True
 
 last_s = collections.deque(maxlen=N_FRAMES)
 
-walking_agent = Agent(N_FRAMES, N_FEATURES, 9, 0, 0, 0, 0.99, 1e-4, WALKING_PATH, [N_FEATURES * N_FRAMES, 2048, 1024, 512, 256])
-shooting_agent = Agent(N_FRAMES, N_FEATURES, 8, 0, 0, 0, 0.99, 1e-4, SHOOTING_PATH, [N_FEATURES * N_FRAMES, 2048, 1024, 512, 256])
+walking_agent = Agent(N_FRAMES, N_FEATURES, 9, 0, 0, 0, 0.99, 1e-4, WALKING_PATH, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])
+shooting_agent = Agent(N_FRAMES, N_FEATURES, 8, 0, 0, 0, 0.99, 1e-4, SHOOTING_PATH, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])
 
 os.chdir(DIRECTORY_PATH)
-process = Popen(PROCESS_NAME, stdin=PIPE, stdout=PIPE)
+
+try:
+    process = Popen(PROCESS_NAME, stdin=PIPE, stdout=PIPE)
+except Exception:
+    print('Something went wrong, check DIRECTORY_PATH')
+    raise SystemExit(-1)
 
 walking_action = 0
 shooting_action = 0

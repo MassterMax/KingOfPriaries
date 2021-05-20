@@ -37,7 +37,20 @@ class Game:
             print()
 
     def step(self, action):
+
+        x = int(self.player.x + 0.5)
+        y = int(self.player.y + 0.5)
+        x /= SIZE
+        y /= SIZE
+        if x > 0.5:
+            x = 1 - x
+        if y > 0.5:
+            y = 1 - y
+
         self.last_reward = 1
+        if min(x, y) < 0.3:
+            self.last_reward = 0
+
         self.shoot_reward = 0
         self.done = 0
         self.clear()
@@ -51,9 +64,9 @@ class Game:
         if self.wait < 3:
             pass
         else:
-            spawn_wave = np.random.binomial(n=1, p=0.3)
+            spawn_wave = np.random.binomial(n=1, p=0.1)
             if spawn_wave:
-                for _ in range(5):
+                for _ in range(9):
                     should_spawn = np.random.binomial(n=1, p=0.8)
                     if should_spawn:
 
@@ -197,7 +210,7 @@ class Bullet:
         while old_x != x or old_y != y:
             for monster in self.game.monsters:
                 if self.intersects_monster(monster, old_x, old_y):
-                    self.game.shoot_reward += 5  # REWARD CHANGED
+                    self.game.shoot_reward += 5
 
                     self.game.field[monster.x][monster.y] = 0
                     self.game.field[monster.x + 1][monster.y] = 0
@@ -212,7 +225,7 @@ class Bullet:
 
         if x < 0 or y < 0 or SIZE - 1 < x or SIZE - 1 < y:
             game.bullets.remove(self)
-            self.game.shoot_reward -= 2
+            self.game.shoot_reward -= 1  # TODO
         else:
             self.game.field[x][y] = 2
 
@@ -314,7 +327,7 @@ TRAIN = True
 COMPUTER = True
 SHOULD_EXECUTE = True
 
-DELTA_EPSILON = 0.9999
+DELTA_EPSILON = 0.99995
 
 MODEL_PATH = "1.cfg"
 MODEL_PATH2 = "2.cfg"
@@ -324,8 +337,8 @@ game = Game()
 last_s = collections.deque(maxlen=N_FRAMES)
 next_s = collections.deque(maxlen=N_FRAMES)
 
-agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.99, 1e-5, MODEL_PATH, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])  # LEARNING RATE
-shooting = Agent(N_FRAMES, N_FEATURES, 8, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.99, 1e-5, MODEL_PATH2, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])
+agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.95, 1e-4, MODEL_PATH, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])  # LEARNING RATE
+shooting = Agent(N_FRAMES, N_FEATURES, 8, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.95, 1e-4, MODEL_PATH2, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])
 
 buffer = ExperienceReplay(BUFFER_SIZE, N_FRAMES)
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'shooting_action', 'reward', 'reward_shooting', 'next_state', 'done'])
@@ -338,6 +351,8 @@ t = 0
 avg_steps = 0
 best_r = 0
 temp_r = 0
+last_time = time.time()
+
 while SHOULD_EXECUTE:
     state = game.observations()
     reward = game.last_reward
@@ -352,7 +367,7 @@ while SHOULD_EXECUTE:
         elif done and t % 100 == 0:
             batch = buffer.sample(BATCH_SIZE)
             states, actions, shooting_actions, rewards, shooting_rewards, next_states, is_done = batch
-            agent.learn(states, actions, rewards, next_states, is_done)
+            # agent.learn(states, actions, rewards, next_states, is_done) # TODO
             shooting.learn(states, shooting_actions, shooting_rewards, next_states, is_done)
 
         if len(last_s) == N_FRAMES:
@@ -363,7 +378,7 @@ while SHOULD_EXECUTE:
     last_s.append(next_s[-1])
 
     if len(last_s) == N_FRAMES:
-        action = agent.get_action(np.concatenate(last_s))
+        # action = agent.get_action(np.concatenate(last_s)) # TODO
         shooting_action = shooting.get_action(np.concatenate(last_s))
         # print(action)
     if COMPUTER:
@@ -385,11 +400,12 @@ while SHOULD_EXECUTE:
     if TRAIN and done:
         t += 1
         if t % max_t == 0:
-            agent.save()
+            # agent.save() # TODO
             shooting.save()
-            print(f"t = {t}, mean sum = {sum_r / max_t}, best score = {best_r}, average steps = {avg_steps / max_t}")
+            print(f"t = {t}, mean sum = {sum_r / max_t:.2f}, best score = {best_r:.2f}, average steps = {avg_steps / max_t:.2f}, time = {(time.time() - last_time):.2f}s")
             avg_steps = 0
             sum_r = 0
             best_r = -100
+            last_time = time.time()
         # if t > 100000:
         #     buffer.clear()

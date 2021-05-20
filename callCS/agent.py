@@ -67,6 +67,9 @@ class Agent:
 
         chosen_action = np.random.choice(range(q_values.shape[-1])) if should_explore else greedy_action
 
+        # print(q_values)
+        # print(chosen_action)
+
         return int(chosen_action)
 
     def save(self):
