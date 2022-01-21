@@ -1,12 +1,17 @@
 import os
+
+import numpy
 import torch
 import torch.nn as nn
 import numpy as np
 
+# from callCS.mini_game import SIZE
+
 
 class Agent:
 
-    def __init__(self, n_frames: int, n_features: int, n_actions: int, epsilon: float, delta_epsilon: float, min_epsilon: float, gamma: float, lr: float, model_path: str, layers):
+    def __init__(self, n_frames: int, n_features: int, n_actions: int, epsilon: float, delta_epsilon: float,
+                 min_epsilon: float, gamma: float, lr: float, model_path: str, layers):
         self.n_frames = n_frames
         self.n_actions = n_actions
         self.n_features = n_features
@@ -22,20 +27,64 @@ class Agent:
     def __make_nn(self):
         if os.path.exists(self.model_path):
             network = torch.load(self.model_path)
+            # network.load_state_dict(torch.load(self.model_path))
+            # network = torch.load(os.path.abspath(self.model_path))
         else:
-            network = nn.Sequential()
-            for i in range(len(self.layers) - 1):
-                network.add_module('l' + str(i), nn.Linear(self.layers[i], self.layers[i + 1]))
-                network.add_module('relu' + str(i), nn.ReLU())
+            # img_height = SIZE
+            network = nn.Sequential(
+                nn.Conv2d(3, 16, 3, padding=1),
+                nn.BatchNorm2d(16),
+                nn.ReLU(),
+                nn.Conv2d(16, 16, 3, padding=1),
+                nn.BatchNorm2d(16),
+                nn.ReLU(),
+                nn.MaxPool2d(2, 2),
+                nn.Dropout(0.2),
 
-            network.add_module('last_l', nn.Linear(self.layers[-1], self.n_actions))
+                nn.Conv2d(16, 32, 3, padding=1),
+                nn.BatchNorm2d(32),
+                nn.ReLU(),
+                nn.Conv2d(32, 32, 3, padding=1),
+                nn.BatchNorm2d(32),
+                nn.ReLU(),
+                nn.MaxPool2d(2, 2),
+                nn.Dropout(0.2),
+
+                nn.Conv2d(32, 64, 3, padding=1),
+                nn.BatchNorm2d(64),
+                nn.ReLU(),
+                nn.Conv2d(64, 64, 3, padding=1),
+                nn.BatchNorm2d(64),
+                nn.ReLU(),
+                nn.MaxPool2d(2, 2),
+                nn.Dropout(0.2),
+
+                nn.Flatten(),
+                nn.Linear(64 * 4 * 4, 256),
+                nn.BatchNorm1d(256),
+                nn.ReLU(),
+
+                nn.Linear(256, 128),
+                nn.BatchNorm1d(128),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+
+                nn.Linear(128, self.n_actions),
+            )
+
+            # network = nn.Sequential()
+            # for i in range(len(self.layers) - 1):
+            #    network.add_module('l' + str(i), nn.Linear(self.layers[i], self.layers[i + 1]))
+            #    network.add_module('relu' + str(i), nn.ReLU())
+            #
+            # network.add_module('last_l', nn.Linear(self.layers[-1], self.n_actions))
         self.network = network
 
     def __compute_td_loss(self, states, actions, rewards, next_states, is_done):
-        states = torch.tensor(states, dtype=torch.float32)  # shape: [batch_size, state_size]
+        states = torch.tensor(numpy.array(states), dtype=torch.float32)  # shape: [batch_size, state_size]
         actions = torch.tensor(actions, dtype=torch.long)  # shape: [batch_size]
         rewards = torch.tensor(rewards, dtype=torch.float32)  # shape: [batch_size]
-        next_states = torch.tensor(next_states, dtype=torch.float32)  # shape: [batch_size, state_size]
+        next_states = torch.tensor(numpy.array(next_states), dtype=torch.float32)  # shape: [batch_size, state_size]
         is_done = torch.tensor(is_done, dtype=torch.uint8)  # shape: [batch_size]
 
         predicted_qvalues = self.network(states)
@@ -49,18 +98,23 @@ class Agent:
 
         loss = torch.mean((predicted_qvalues_for_actions - target_qvalues_for_actions.detach()) ** 2)
 
-        print(loss)
+        print(f'loss was: {loss.item()}')
         return loss
 
     def learn(self, states, actions, rewards, next_states, is_done):
+        self.network.train()
+
         self.opt.zero_grad()
         self.__compute_td_loss(states, actions, rewards, next_states, is_done).backward()
         self.opt.step()
         self.epsilon = max(self.epsilon * self.delta_epsilon, self.min_epsilon)
 
     def get_action(self, state):
-        state = torch.tensor(state, dtype=torch.float32)
+        self.network.eval()
+
+        state = torch.tensor(numpy.array([state]), dtype=torch.float32)
         q_values = self.network(state).detach().numpy()
+        # print(q_values.shape)
 
         greedy_action = np.argmax(q_values)
         should_explore = np.random.binomial(n=1, p=self.epsilon)

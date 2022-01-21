@@ -37,7 +37,6 @@ class Game:
             print()
 
     def step(self, action):
-
         x = int(self.player.x + 0.5)
         y = int(self.player.y + 0.5)
         x /= SIZE
@@ -54,7 +53,16 @@ class Game:
         self.shoot_reward = 0
         self.done = 0
         self.clear()
-        self.player.move(action)
+
+        # 0 1 2
+        # 3 4 5
+        # 6 7 8
+
+        # action = move_action + 9 * shooting_action
+
+        self.player.move(action % 9)
+        self.player.spawn_bullet(action // 9)
+
         for monster in self.monsters:
             monster.move()
         for bullet in self.bullets:
@@ -121,42 +129,52 @@ class Game:
         # self.print_field()
 
     def observations(self):
-        arr = [0] * (SIZE * SIZE * 3)
+        # arr = [0] * (SIZE * SIZE * 3)
+        arr = np.zeros((3, SIZE, SIZE))
 
         x = int(self.player.x + 0.5)
         y = int(self.player.y + 0.5)
-        arr[y + SIZE * x] = 1
-        arr[y + 1 + SIZE * x] = 1
-        arr[y + 1 + SIZE * (x + 1)] = 1
-        arr[y + SIZE * (x + 1)] = 1
+        # arr[y + SIZE * x] = 1
+        # arr[y + 1 + SIZE * x] = 1
+        # arr[y + 1 + SIZE * (x + 1)] = 1
+        # arr[y + SIZE * (x + 1)] = 1
+        arr[0][y][x] = 1
+        arr[0][y + 1][x] = 1
+        arr[0][y + 1][x + 1] = 1
+        arr[0][y][x + 1] = 1
 
         for bullet in self.bullets:
             x = int(bullet.x + 0.5)
             y = int(bullet.y + 0.5)
-            arr[SIZE * SIZE + y + SIZE * x] = 1
+            # arr[SIZE * SIZE + y + SIZE * x] = 1
+            arr[1][y][x] = 1
 
         for monster in self.monsters:
             x = int(monster.x + 0.5)
             y = int(monster.y + 0.5)
-            arr[SIZE * SIZE * 2 + y + SIZE * x] = 1
-            arr[SIZE * SIZE * 2 + y + 1 + SIZE * x] = 1
-            arr[SIZE * SIZE * 2 + y + 1 + SIZE * (x + 1)] = 1
-            arr[SIZE * SIZE * 2 + y + SIZE * (x + 1)] = 1
+            # arr[SIZE * SIZE * 2 + y + SIZE * x] = 1
+            # arr[SIZE * SIZE * 2 + y + 1 + SIZE * x] = 1
+            # arr[SIZE * SIZE * 2 + y + 1 + SIZE * (x + 1)] = 1
+            # arr[SIZE * SIZE * 2 + y + SIZE * (x + 1)] = 1
+            arr[2][y][x] = 1
+            arr[2][y + 1][x] = 1
+            arr[2][y + 1][x + 1] = 1
+            arr[2][y][x + 1] = 1
 
         return arr
 
 
 class Creature:
-    def __init__(self, x, y, game):
+    def __init__(self, x, y, _game):
         self.x = x
         self.y = y
-        self.game = game
+        self.game = _game
 
 
 class Player(Creature):
-    def move(self, action):
-        self.x += self.game.directions[action][0]
-        self.y += self.game.directions[action][1]
+    def move(self, _action):
+        self.x += self.game.directions[_action][0]
+        self.y += self.game.directions[_action][1]
 
         self.x = min(SIZE - 2, self.x)
         self.y = min(SIZE - 2, self.y)
@@ -185,7 +203,7 @@ class Player(Creature):
 
 
 class Bullet:
-    def __init__(self, x, y, direction, game):
+    def __init__(self, x, y, direction, _game):
         direction += 1
         self.x = x
         self.y = y
@@ -314,37 +332,39 @@ class Monster(Creature):
         return (x1 - x2) ** 2 + (y1 - y2) ** 2
 
 
-BATCH_SIZE = 1000
-BUFFER_SIZE = 100000
-REPLAY_START_SIZE = 1000
+FREQUENCY = 4
+BATCH_SIZE = 32
+BUFFER_SIZE = 65536
+REPLAY_START_SIZE = 1024
 
 SIZE = 32
-N_FRAMES = 2      # state = 2 last frames
-N_ACTIONS = 9     # 8 directions to shoot * 2 (stay/go in opposite direction)
+N_FRAMES = 1      # state = 2 last frames
+N_ACTIONS = 9 * 9     # (8 directions to shoot or not shoot lol) * (8 directions to go or stay lol)
 N_FEATURES = SIZE * SIZE * 3  # player, player's bullets, enemies # DEPRECATED
 
-TRAIN = True
+TRAIN = False  # todo
 COMPUTER = True
 SHOULD_EXECUTE = True
 
 DELTA_EPSILON = 0.99995
 
-MODEL_PATH = "1.cfg"
-MODEL_PATH2 = "2.cfg"
+MODEL_PATH = "model1"
+MODEL_PATH2 = "model2"
 
 game = Game()
 
 last_s = collections.deque(maxlen=N_FRAMES)
 next_s = collections.deque(maxlen=N_FRAMES)
 
-agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.95, 1e-4, MODEL_PATH, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])  # LEARNING RATE
-shooting = Agent(N_FRAMES, N_FEATURES, 8, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.95, 1e-4, MODEL_PATH2, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])
+agent = Agent(N_FRAMES, N_FEATURES, N_ACTIONS, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN, 0.95, 1e-4, MODEL_PATH, None)
+# shooting = Agent(N_FRAMES, N_FEATURES, 8, 1 * TRAIN, DELTA_EPSILON, 0.1 * TRAIN,
+# 0.95, 1e-4, MODEL_PATH2, [N_FEATURES * N_FRAMES, 4096, 2048, 1024, 512, 256])
 
 buffer = ExperienceReplay(BUFFER_SIZE, N_FRAMES)
-Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'shooting_action', 'reward', 'reward_shooting', 'next_state', 'done'])
+Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'next_state', 'done'])
 
 action = 0
-shooting_action = 0
+# shooting_action = 0
 sum_r = 0
 max_t = 100
 t = 0
@@ -355,6 +375,11 @@ last_time = time.time()
 
 while SHOULD_EXECUTE:
     state = game.observations()
+    # print(len(state[0]))
+
+    # for i in range(3 * SIZE):
+    #     for j in range(SIZE):
+
     reward = game.last_reward
     shooting_reward = game.shoot_reward
     done = game.done
@@ -364,27 +389,27 @@ while SHOULD_EXECUTE:
     if TRAIN:
         if len(buffer) < REPLAY_START_SIZE:
             pass
-        elif done and t % 100 == 0:
+        elif done and t % FREQUENCY == 0:
             batch = buffer.sample(BATCH_SIZE)
             states, actions, shooting_actions, rewards, shooting_rewards, next_states, is_done = batch
-            # agent.learn(states, actions, rewards, next_states, is_done) # TODO
-            shooting.learn(states, shooting_actions, shooting_rewards, next_states, is_done)
+            agent.learn(states, actions, rewards, next_states, is_done)  # TODO
+            # shooting.learn(states, shooting_actions, shooting_rewards, next_states, is_done)
 
         if len(last_s) == N_FRAMES:
-            buffer.append(Experience(np.concatenate(last_s), action, shooting_action, reward, shooting_reward, np.concatenate(next_s), done))
+            buffer.append(Experience(last_s[-1], action, reward, next_s[-1], done))  # todo np.concatenate(next_s)
             sum_r += reward + shooting_reward
             temp_r += reward + shooting_reward
 
     last_s.append(next_s[-1])
 
     if len(last_s) == N_FRAMES:
-        # action = agent.get_action(np.concatenate(last_s)) # TODO
-        shooting_action = shooting.get_action(np.concatenate(last_s))
+        action = agent.get_action(last_s[-1])  # TODO
+        # shooting_action = shooting.get_action(last_s[-1])  # TODO few frames
         # print(action)
     if COMPUTER:
         if not done:
             game.step(action)
-            game.player.spawn_bullet(shooting_action)
+            # game.player.spawn_bullet(shooting_action)
             if not TRAIN:
                 time.sleep(0.5)
         else:
@@ -400,9 +425,10 @@ while SHOULD_EXECUTE:
     if TRAIN and done:
         t += 1
         if t % max_t == 0:
-            # agent.save() # TODO
-            shooting.save()
-            print(f"t = {t}, mean sum = {sum_r / max_t:.2f}, best score = {best_r:.2f}, average steps = {avg_steps / max_t:.2f}, time = {(time.time() - last_time):.2f}s")
+            agent.save()  # TODO
+            # shooting.save()
+            print(f"t = {t}, mean sum = {sum_r / max_t:.2f}, best score = "
+                  f"{best_r:.2f}, average steps = {avg_steps / max_t:.2f}, time = {(time.time() - last_time):.2f}s")
             avg_steps = 0
             sum_r = 0
             best_r = -100

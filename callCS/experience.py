@@ -15,9 +15,9 @@ class ExperienceReplay:
 
     def sample(self, batch_size):
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
-        states, actions, shooting_actions, rewards, shooting_rewards, next_states, is_done = zip(*[self.buffer[idx] for idx in indices])
+        states, actions, rewards, next_states, is_done = zip(*[self.buffer[idx] for idx in indices])
 
-        return states, actions, shooting_actions, rewards, shooting_rewards, next_states, is_done
+        return states, actions, rewards, next_states, is_done
 
     def clear(self):
         self.buffer.clear()
